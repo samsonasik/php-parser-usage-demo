@@ -12,9 +12,13 @@ try {
     return;
 }
 
-// traverse (walking through the AST) via NodeTraverser with Node visitor(s)
-// eg: with NameResolver visitor to resolve namespaced names
-$traverser = new PhpParser\NodeTraverser(new PhpParser\NodeVisitor\NameResolver);
+$traverser = new PhpParser\NodeTraverser(
+    // ensure all nodes are cloned before modification, so original AST can be used for format-preserving printing
+    new PhpParser\NodeVisitor\CloningVisitor,
+
+    // resolve namespaced names, so we can get full class name with namespace
+    new PhpParser\NodeVisitor\NameResolver,
+);
 $ast = $traverser->traverse($stmts);
 
 // for pretty dumping, can use symfony/var-dumper, tracy/tracy, etc
@@ -31,7 +35,7 @@ $ast[0]->stmts[0]->name = new PhpParser\Node\Identifier('RenamedClass');
 
 // regenerate code from modified AST
 $prettyPrinter = new PhpParser\PrettyPrinter\Standard;
-$code = $prettyPrinter->prettyPrintFile($ast);
+$code = $prettyPrinter->printFormatPreserving($ast, $stmts, $parser->getTokens());
 
 // save modified code back to file
 file_put_contents('some_class.php', $code);
